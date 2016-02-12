@@ -1,19 +1,20 @@
+#Run this line to install the necessary packages
 install.packages("jsonlite")
 install.packages("XML")
-install.packages("RCurl")
 install.packages("dplyr")
 
 
 library(jsonlite)
 library(XML)
-library(RCurl)
 library(dplyr)
-setwd("C:/Users/marro/Downloads/Data Prep/json/")
-file_list <- list.files()
+
+#indicate here the directory where the json files are stored
+path = "C:/Users/marro/Downloads/Data Prep/json/"
+file_list <- list.files(path)
 
 hotels= data.frame(FileName=character(), Name=character(), City=character(), Country=character(), PriceRange = character(), Address=character(), stringsAsFactors=FALSE)
 for (file_name in file_list){
-  data <- fromJSON(txt=file_name)
+  data <- fromJSON(txt=paste(path,file_name,sep=""))
   address <- data$HotelInfo$Address
   name <- data$HotelInfo$Name
   price = NA
@@ -48,6 +49,28 @@ for (file_name in file_list){
   }
 }
 
-distinct_city_names <- unique(hotels$City)
-us_distinct_city_names <- unique((dplyr::filter(hotels,Country=="US"))$City)
-table = dplyr::select(hotels, Name, Price, Address)
+#set of distinct city names
+distinct_city_names <- filter(hotels,!is.na(City)) %>% select(City) %>% distinct
+write.table(distinct_city_names, file = "distinct_city_names.csv", row.names = FALSE, col.names = FALSE)
+
+#set of distinct us city names
+us_distinct_city_names <- filter(hotels,!is.na(City)) %>% filter(Country == "US")  %>% select(City) %>% distinct
+write.table(us_distinct_city_names, file = "us_distinct_city_names.csv", row.names = FALSE, col.names = FALSE)
+
+#number of hotels in each city
+distinct_hotels <- hotels %>% select(City,Name) %>% distinct #just in case hotels are more than one time
+hotels_count_by_city <- filter(distinct_hotels,!is.na(City)) %>%  group_by(City) %>% summarise(n())
+colnames(hotels_count_by_city)[2] <- "Count"
+write.table(hotels_count_by_city, file = "hotels_count_by_city.csv", row.names = FALSE,sep=",")
+
+
+#cities with more than 30 hotels
+cities_with_more_than_30 <- hotels_count_by_city %>% filter(Count>30) %>% select(City)
+write.table(cities_with_more_than_30, file = "cities_with_more_than_30.csv", row.names = FALSE)
+
+
+#table containing the name of each hotel, its price range, and its address
+table = dplyr::select(hotels, Name, PriceRange, Address)
+write.table(table, file = "table.csv", row.names = FALSE,sep=",")
+
+
